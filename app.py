@@ -6,6 +6,7 @@ from werkzeug import secure_filename
 import json
 import sqlite3
 import os
+import time
 
 app = Flask(__name__)
 
@@ -31,7 +32,7 @@ def db_init():
                            ins_type TEXT, ins_name TEXT,subjects TEXT )
     ''')
     print 'Created new table users'
-    db.close()
+    db.commit()
 
 @app.route('/add')
 def add_user():
@@ -39,7 +40,7 @@ def add_user():
     cursor = db.cursor()
 
     try:
-        gcm_id = request.args.get('gcm_id ') or '3'
+        gcm_id = request.args.get('gcm_id ') or 'asdasd9098'
         name = request.args.get('name') or ''
         email = request.args.get('email') or 'aaasd'
         tag_line = request.args.get('tag_line') or ''
@@ -54,6 +55,7 @@ def add_user():
     
     cursor.execute('INSERT INTO users VALUES(?,?,?,?,?,?,?,?)', (gcm_id,name,email,tag_line,address,dob,ins_type,ins_name))
     db.commit()
+    db.close()
     return "{'status':200,\n\t'response':'User has been added'}"
 
 @app.route('/view_all')
@@ -61,8 +63,10 @@ def view_all():
     db = sqlite3.connect('data/main.db',timeout=10)
     cursor = db.cursor()
     cursor.execute('''SELECT * FROM users''')
-    return json.dumps( cursor.fetchall() )
-
+    a = json.dumps( cursor.fetchall() )
+    db.commit()
+    db.close()
+    return a
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1] in app.config['ALLOWED_EXTENSIONS']
@@ -73,13 +77,25 @@ def upload_test():
 
 @app.route('/upload', methods=['POST'])
 def upload():
+    db = sqlite3.connect('data/main.db',timeout=10)
+    cursor = db.cursor()
+    sql = 'create table if not exists notes(gcm_id TEXT, tags TEXT ,file_path TEXT)'
+    cursor.execute(sql)
+
+    gcm_id = request.args.get('gcm_id ') or 'sample_123123123hjh1231g2313'
+    tags = request.args.get('name') or 'food,icecream,biology'
+
     file = request.files['file']
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
+        filename = "%d_%s"%(int(time.time()),filename)
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        return '<img src="/uploads/%s">'%filename
-        return redirect(url_for('uploaded_file',
-                                filename=filename))
+        img_path = "http://tosc.in:5002/uploads/%s"%filename
+
+    cursor.execute('INSERT INTO notes VALUES(?,?,?)', (gcm_id,tags,img_path))
+    db.commit()
+    db.close
+    return "{'status':200,\n\t'response':'%s'}"%img_path
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
