@@ -1,15 +1,23 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import flask, flask.views
-app = flask.Flask(__name__)
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory
 
-from flask import render_template
-from flask import request
+from werkzeug import secure_filename
+
 import json
 import sqlite3
+import os
 
-def on_init():
+app = Flask(__name__)
+
+# This is the path to the upload directory
+app.config['UPLOAD_FOLDER'] = 'uploads/'
+# These are the extension that we are accepting to be uploaded
+app.config['ALLOWED_EXTENSIONS'] = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
+
+#to initialize db on first run
+def db_init():
     db = sqlite3.connect('data/main.db',timeout=10)
     cursor = db.cursor()
 
@@ -27,7 +35,7 @@ def on_init():
     print 'Created new table users'
     db.close()
 
-@app.route('/')
+@app.route('/add')
 def index():
     db = sqlite3.connect('data/main.db',timeout=10)
     cursor = db.cursor()
@@ -58,8 +66,31 @@ def index():
     return json.dumps( cursor.fetchall() )
 
     return "{'status':200,\n\t'response':'User has been added'}"
-    
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1] in app.config['ALLOWED_EXTENSIONS']
+
+@app.route('/test')
+def upload_test():
+    return render_template('upload.html')
+
+@app.route('/upload', methods=['POST'])
+def upload():
+    file = request.files['file']
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        return redirect(url_for('uploaded_file',
+                                filename=filename))
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'],
+                               filename)
+
+
 if __name__ == '__main__':
-    #on_init()
+    #db_init()
     app.debug = True
     app.run(host='0.0.0.0')
