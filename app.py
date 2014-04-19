@@ -36,7 +36,7 @@ def db_init():
     db.close()
 
 @app.route('/add')
-def index():
+def add_user():
     db = sqlite3.connect('data/main.db',timeout=10)
     cursor = db.cursor()
 
@@ -56,16 +56,16 @@ def index():
     
     cursor.execute('INSERT INTO users VALUES(?,?,?,?,?,?,?,?)', (gcm_id,name,email,tag_line,address,dob,ins_type,ins_name))
     
-    
-    #cursor.execute('''INSERT INTO users(gcm_id,name,email,tag_line,address,dob,ins_type,ins_name,subjects)
-    #                  VALUES(?,?,?,?,?,?,?,?,?)''', (gcm_id,name,email,tag_line,address,dob,ins_type,ins_name,subjects))
-    
     db.commit()
-    
+    return "{'status':200,\n\t'response':'User has been added'}"
+
+@app.route('/view_all')
+def view_all():
+    db = sqlite3.connect('data/main.db',timeout=10)
+    cursor = db.cursor()
     cursor.execute('''SELECT * FROM users''')
     return json.dumps( cursor.fetchall() )
 
-    return "{'status':200,\n\t'response':'User has been added'}"
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -81,6 +81,7 @@ def upload():
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        return '<img src="/uploads/%s">'%filename
         return redirect(url_for('uploaded_file',
                                 filename=filename))
 
