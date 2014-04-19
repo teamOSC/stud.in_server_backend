@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory
-
 from werkzeug import secure_filename
-
 import json
 import sqlite3
 import os
@@ -55,7 +53,6 @@ def add_user():
         return '{"status":400,\n\t"response":"one or more parameters is/are missing"}'
     
     cursor.execute('INSERT INTO users VALUES(?,?,?,?,?,?,?,?)', (gcm_id,name,email,tag_line,address,dob,ins_type,ins_name))
-    
     db.commit()
     return "{'status':200,\n\t'response':'User has been added'}"
 
@@ -65,7 +62,6 @@ def view_all():
     cursor = db.cursor()
     cursor.execute('''SELECT * FROM users''')
     return json.dumps( cursor.fetchall() )
-
 
 def allowed_file(filename):
     return '.' in filename and \
