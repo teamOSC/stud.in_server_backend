@@ -20,19 +20,22 @@ app.config['UPLOAD_FOLDER'] = 'uploads/'
 app.config['ALLOWED_EXTENSIONS'] = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 
 class Notes(db.Model):
-    __tablename__ = 'notes'
-    gcm_id = db.Column(db.String, primary_key=True)
+    __tablename__ = 'notes7'
+    id = db.Column(db.String,primary_key = True)
+    gcm_id = db.Column(db.String(100))
     title = db.Column(db.String(100))
     tags = db.Column(db.String(100))
-
-    def __init__(self,gcm_id,title,tags):
+    img_path = db.Column(db.String(200))
+    def __init__(self,id,gcm_id,title,tags,img_path):
         # Initializes the fields with entered data
+        self.id = id
         self.gcm_id = gcm_id
         self.title = title
         self.tags = tags
+        self.img_path = img_path
 
 class User(db.Model):
-    __tablename__ = 'user4'
+    __tablename__ = 'user6'
     gcm_id = db.Column(db.String, primary_key=True)
     name = db.Column(db.String(100))
     email = db.Column(db.String(100))
@@ -40,7 +43,6 @@ class User(db.Model):
     dob = db.Column(db.String(200))
     address = db.Column(db.String(200))
     ins_type = db.Column(db.String(200))
-    tag_name = db.Column(db.String(200))
     subjects = db.Column(db.String(200))
 
     def __init__(self,gcm_id,name,email,tag_line,address,dob,ins_type,ins_name,subjects):
@@ -48,6 +50,7 @@ class User(db.Model):
         self.gcm_id = gcm_id
         self.name = name
         self.email = email
+        self.tag_line = tag_line
         self.address = address
         self.dob = dob
         self.ins_type = ins_type
@@ -106,18 +109,31 @@ def upload():
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         img_path = "http://tosc.in:5002/uploads/%s"%filename
     db.create_all()
-    notes_object = Notes(gcm_id,title,tags)
+    id = str(time.time())
+    notes_object = Notes(id,gcm_id,title,tags,img_path)
     db.session.add(notes_object)
-    db.session.commit()    
+    db.session.commit()
     return "{'status':200,\n\t'response':'%s'}"%img_path
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
+    tags = request.args.get('tags') or ''
     return send_from_directory(app.config['UPLOAD_FOLDER'],
                                filename)
 
+@app.route('/notes')
+def notes():
+    arr = []
+    for u in db.session.query(Notes).all():
+        d = {}
+        d['name'] = str(u.__dict__['title']) 
+        d['url'] = str(u.__dict__['img_path'])
+        d['tags'] = str(u.__dict__['tags'])
+        arr.append(d)
+    return json.dumps(arr)
 
 if __name__ == '__main__':
     #db_init()
     app.debug = True
     app.run(host='0.0.0.0',port=5002)
+
