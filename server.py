@@ -79,6 +79,7 @@ def add_user():
     ins_name = request.args.get('ins_name') or ''
     subjects = request.args.get('subjects') or ''
 
+    db.create_all()
     user_object = User(gcm_id,name,email,tag_line,address,dob,ins_type,ins_name,subjects)
     db.session.add(user_object)
     db.session.commit()    
@@ -94,8 +95,8 @@ def upload_test():
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    gcm_id = request.args.get('gcm_id')
-    title = request.args.get('title')
+    gcm_id = request.args.get('gcm_id') or ''
+    title = request.args.get('title') or ''
     tags = request.args.get('tags') or 'food,icecream,biology'
 
     file = request.files['file']
@@ -104,8 +105,8 @@ def upload():
         filename = "%d_%s"%(int(time.time()),filename)
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         img_path = "http://tosc.in:5002/uploads/%s"%filename
-
-    notes_object = User(gcm_id,title,tags)
+    db.create_all()
+    notes_object = Notes(gcm_id,title,tags)
     db.session.add(notes_object)
     db.session.commit()    
     return "{'status':200,\n\t'response':'%s'}"%img_path
