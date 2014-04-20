@@ -4,86 +4,99 @@
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory
 from werkzeug import secure_filename
 import json
-import sqlite3
 import os
 import time
 
+from flask.ext.sqlalchemy import SQLAlchemy
+
 app = Flask(__name__)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/test.db'
+db = SQLAlchemy(app)
 
 # This is the path to the upload directory
 app.config['UPLOAD_FOLDER'] = 'uploads/'
 # These are the extension that we are accepting to be uploaded
 app.config['ALLOWED_EXTENSIONS'] = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 
-#to initialize db on first run
-def db_init():
-    db = sqlite3.connect('data/main.db',timeout=10)
-    cursor = db.cursor()
+class Notes(db.Model):
+    __tablename__ = 'notes'
+    gcm_id = db.Column(db.String, primary_key=True)
+    title = db.Column(db.String(100))
+    tags = db.Column(db.String(100))
 
-    try:
-        cursor.execute('DROP TABLE users;')
-        print 'Dropped table users'
-    except:
-        pass
-    
-    cursor.execute('''
-        CREATE TABLE users(gcm_id TEXT PRIMARY KEY, name TEXT,email TEXT,
-                           tag_line TEXT, address TEXT,dob TEXT 
-                           ins_type TEXT, ins_name TEXT,subjects TEXT )
-    ''')
-    print 'Created new table users'
-    db.commit()
+    def __init__(self,gcm_id,title,tags):
+        # Initializes the fields with entered data
+        self.gcm_id = gcm_id
+        self.title = title
+        self.tags = tags
+
+class User(db.Model):
+    __tablename__ = 'user4'
+    gcm_id = db.Column(db.String, primary_key=True)
+    name = db.Column(db.String(100))
+    email = db.Column(db.String(100))
+    tag_line = db.Column(db.String(200))
+    dob = db.Column(db.String(200))
+    address = db.Column(db.String(200))
+    ins_type = db.Column(db.String(200))
+    tag_name = db.Column(db.String(200))
+    subjects = db.Column(db.String(200))
+
+    def __init__(self,gcm_id,name,email,tag_line,address,dob,ins_type,ins_name,subjects):
+        # Initializes the fields with entered data
+        self.gcm_id = gcm_id
+        self.name = name
+        self.email = email
+        self.address = address
+        self.dob = dob
+        self.ins_type = ins_type
+        self.ins_name = ins_name
+        self.subjects = subjects
+
+def db_init():
+    db.create_all()
+    comment = User("a1","b","c","d","e","f","g","h","i")
+    db.session.add(comment)
+    db.session.commit()
+
+@app.route('/view_all')
+def foo():
+    arr = []
+    for u in db.session.query(User).all():
+        arr.append(str(u.__dict__))
+    return str(arr)
 
 @app.route('/add')
 def add_user():
-    db = sqlite3.connect('data/main.db',timeout=10)
-    cursor = db.cursor()
+    gcm_id = request.args.get('gcm_id')
+    name = request.args.get('name') or ''
+    email = request.args.get('email') or 'aaasd'
+    tag_line = request.args.get('tag_line') or ''
+    address = request.args.get('address') or ''
+    dob = request.args.get('dob') or ''
+    ins_type = request.args.get('ins_type') or ''
+    ins_name = request.args.get('ins_name') or ''
+    subjects = request.args.get('subjects') or ''
 
-    try:
-        gcm_id = request.args.get('gcm_id ') or 'asdasd9098'
-        name = request.args.get('name') or ''
-        email = request.args.get('email') or 'aaasd'
-        tag_line = request.args.get('tag_line') or ''
-        address = request.args.get('address') or ''
-        dob = request.args.get('dob') or ''
-        ins_type = request.args.get('ins_type') or ''
-        ins_name = request.args.get('ins_name') or ''
-        subjects = request.args.get('subjects') or ''
-
-    except:
-        return '{"status":400,\n\t"response":"one or more parameters is/are missing"}'
-    
-    cursor.execute('INSERT INTO users VALUES(?,?,?,?,?,?,?,?)', (gcm_id,name,email,tag_line,address,dob,ins_type,ins_name))
-    db.commit()
-    db.close()
+    user_object = User(gcm_id,name,email,tag_line,address,dob,ins_type,ins_name,subjects)
+    db.session.add(user_object)
+    db.session.commit()    
     return "{'status':200,\n\t'response':'User has been added'}"
 
-@app.route('/view_all')
-def view_all():
-    db = sqlite3.connect('data/main.db',timeout=10)
-    cursor = db.cursor()
-    cursor.execute('''SELECT * FROM users''')
-    a = json.dumps( cursor.fetchall() )
-    db.commit()
-    db.close()
-    return a
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1] in app.config['ALLOWED_EXTENSIONS']
 
-@app.route('/test')
+@app.route('/test-upload')
 def upload_test():
     return render_template('upload.html')
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    db = sqlite3.connect('data/main.db',timeout=10)
-    cursor = db.cursor()
-    sql = 'create table if not exists notes(gcm_id TEXT, tags TEXT ,file_path TEXT)'
-    cursor.execute(sql)
-
-    gcm_id = request.args.get('gcm_id ') or 'sample_123123123hjh1231g2313'
-    tags = request.args.get('name') or 'food,icecream,biology'
+    gcm_id = request.args.get('gcm_id')
+    title = request.args.get('title')
+    tags = request.args.get('tags') or 'food,icecream,biology'
 
     file = request.files['file']
     if file and allowed_file(file.filename):
@@ -92,9 +105,9 @@ def upload():
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         img_path = "http://tosc.in:5002/uploads/%s"%filename
 
-    cursor.execute('INSERT INTO notes VALUES(?,?,?)', (gcm_id,tags,img_path))
-    db.commit()
-    db.close
+    notes_object = User(gcm_id,title,tags)
+    db.session.add(notes_object)
+    db.session.commit()    
     return "{'status':200,\n\t'response':'%s'}"%img_path
 
 @app.route('/uploads/<filename>')
