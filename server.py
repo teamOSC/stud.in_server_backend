@@ -20,7 +20,7 @@ app.config['UPLOAD_FOLDER'] = 'uploads/'
 app.config['ALLOWED_EXTENSIONS'] = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 
 class Notes(db.Model):
-    __tablename__ = 'notes7'
+    __tablename__ = 'notes15'
     id = db.Column(db.String,primary_key = True)
     gcm_id = db.Column(db.String(100))
     title = db.Column(db.String(100))
@@ -35,7 +35,7 @@ class Notes(db.Model):
         self.img_path = img_path
 
 class User(db.Model):
-    __tablename__ = 'user6'
+    __tablename__ = 'user9'
     gcm_id = db.Column(db.String, primary_key=True)
     name = db.Column(db.String(100))
     email = db.Column(db.String(100))
@@ -43,6 +43,7 @@ class User(db.Model):
     dob = db.Column(db.String(200))
     address = db.Column(db.String(200))
     ins_type = db.Column(db.String(200))
+    ins_name = db.Column(db.String(200))
     subjects = db.Column(db.String(200))
 
     def __init__(self,gcm_id,name,email,tag_line,address,dob,ins_type,ins_name,subjects):
@@ -57,50 +58,95 @@ class User(db.Model):
         self.ins_name = ins_name
         self.subjects = subjects
 
-def db_init():
-    db.create_all()
-    comment = User("a1","b","c","d","e","f","g","h","i")
-    db.session.add(comment)
-    db.session.commit()
+class Tutor(db.Model):
+    __tablename__ = 'tutor1'
+    email = db.Column(db.String, primary_key=True)
+    name = db.Column(db.String(100))
+    subjects = db.Column(db.String(200))
 
-@app.route('/view_all')
-def foo():
-    arr = []
-    for u in db.session.query(User).all():
-        arr.append(str(u.__dict__))
-    return str(arr)
+    def __init__(self,email,name,subjects):
+        self.email = email
+        self.name = name
+        self.subjects = subjects
 
-@app.route('/add')
+#/view/User,/view/Notes,/view/Tutor
+@app.route('/view/<dbname>')
+def view_table(dbname):
+    if dbname == 'Notes':
+        arr = []
+        for u in db.session.query(Notes).all():
+            d = {}
+            d['name'] = str(u.__dict__['title']) 
+            d['url'] = str(u.__dict__['img_path'])
+            d['tags'] = str(u.__dict__['tags'])
+            path = str(u.__dict__['img_path'])
+            path = path.split('/')
+            path[-1] = 'thumb_' + path[-1]
+            path = "/".join(path)
+            d['thumb_img'] = path
+            arr.append(d)
+        return json.dumps(arr)
+    else:
+        arr = []
+        a = eval(dbname)
+        for u in db.session.query(a).all():
+            arr.append(str(u.__dict__))
+        return json.dumps(arr)
+
+@app.route('/add/<entity>')
 def add_user():
-    gcm_id = request.args.get('gcm_id')
-    name = request.args.get('name') or ''
-    email = request.args.get('email') or 'aaasd'
-    tag_line = request.args.get('tag_line') or ''
-    address = request.args.get('address') or ''
-    dob = request.args.get('dob') or ''
-    ins_type = request.args.get('ins_type') or ''
-    ins_name = request.args.get('ins_name') or ''
-    subjects = request.args.get('subjects') or ''
+    if entity == 'User':
+        gcm_id = request.args.get('gcm_id')
+        name = request.args.get('name')
+        email = request.args.get('email')
+        tag_line = request.args.get('tag_line')
+        address = request.args.get('address')
+        dob = request.args.get('dob')
+        ins_type = request.args.get('ins_type')
+        ins_name = request.args.get('ins_name')
+        subjects = request.args.get('subjects')
 
-    db.create_all()
-    user_object = User(gcm_id,name,email,tag_line,address,dob,ins_type,ins_name,subjects)
-    db.session.add(user_object)
-    db.session.commit()    
-    return "{'status':200,\n\t'response':'User has been added'}"
+        db.create_all()
+        user_object = User(gcm_id,name,email,tag_line,address,dob,ins_type,ins_name,subjects)
+        db.session.add(user_object)
+        db.session.commit()
+        return "{'status':200,\n\t'response':'User has been added'}"
+
+    if entity == 'Tutor':
+        email = request.args.get('email')
+        subjects = request.args.get('subjects')
+        name = request.args.get('name')
+        db.create_all()
+        tutor_object = Tutor(email,name,subjects)
+        db.session.add(tutor_object)
+        db.session.commit()
+        return 'success'
 
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1] in app.config['ALLOWED_EXTENSIONS']
 
-@app.route('/test-upload')
+@app.route('/test')
 def upload_test():
     return render_template('upload.html')
 
+def gen_thumb(file_name):
+    curr_path = os.path.abspath(__file__)
+    curr_path = curr_path.split('/')[:-1]
+    curr_path = "/".join(curr_path) + '/uploads'
+    os.system("convert %s/%s -resize 250x250  %s/thumb_%s"%(curr_path,file_name,curr_path,file_name))
+
+def gen_white(file_name):
+    curr_path = os.path.abspath(__file__)
+    curr_path = curr_path.split('/')[:-1]
+    curr_path = "/".join(curr_path) + '/uploads'
+    os.system("./whiteboard.sh %s/%s  %s/white_%s"%(curr_path,file_name,curr_path,file_name))
+
 @app.route('/upload', methods=['POST'])
 def upload():
-    gcm_id = request.args.get('gcm_id') or ''
-    title = request.args.get('title') or ''
-    tags = request.args.get('tags') or 'food,icecream,biology'
+    gcm_id = request.form.get('gcm_id')
+    title = request.form.get('title')
+    tags = request.form.get('tags')
 
     file = request.files['file']
     if file and allowed_file(file.filename):
@@ -108,32 +154,24 @@ def upload():
         filename = "%d_%s"%(int(time.time()),filename)
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         img_path = "http://tosc.in:5002/uploads/%s"%filename
+        thumb_path = "http://tosc.in:5002/uploads/thumb_%s"%filename
+        #white_path = "http://tosc.in:5002/uploads/white_%s"%filename
+        gen_thumb(filename)
+        #gen_white(filename)
+
     db.create_all()
     id = str(time.time())
     notes_object = Notes(id,gcm_id,title,tags,img_path)
     db.session.add(notes_object)
     db.session.commit()
-    return "{'status':200,\n\t'response':'%s'}"%img_path
+    return "{'status':200,\n\t'response':'%s,%s'}"%(img_path,thumb_path)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
-    tags = request.args.get('tags') or ''
-    return send_from_directory(app.config['UPLOAD_FOLDER'],
-                               filename)
-
-@app.route('/notes')
-def notes():
-    arr = []
-    for u in db.session.query(Notes).all():
-        d = {}
-        d['name'] = str(u.__dict__['title']) 
-        d['url'] = str(u.__dict__['img_path'])
-        d['tags'] = str(u.__dict__['tags'])
-        arr.append(d)
-    return json.dumps(arr)
+    return send_from_directory(app.config['UPLOAD_FOLDER'],filename)
 
 if __name__ == '__main__':
-    #db_init()
+    #print gen_white('1397959352_daft-punk.jpg')
     app.debug = True
     app.run(host='0.0.0.0',port=5002)
 
