@@ -6,6 +6,7 @@ from werkzeug import secure_filename
 import json
 import os
 import time
+import ast
 
 from flask.ext.sqlalchemy import SQLAlchemy
 
@@ -88,13 +89,16 @@ def view_table(dbname):
         return json.dumps(arr)
     else:
         arr = []
-        a = eval(dbname)
+        try:
+            a = getattr(sys.modules[__name__], dbname)
+        except:
+            return '404'
         for u in db.session.query(a).all():
             arr.append(str(u.__dict__))
         return json.dumps(arr)
 
 @app.route('/add/<entity>')
-def add_user():
+def add_entity():
     if entity == 'User':
         gcm_id = request.args.get('gcm_id')
         name = request.args.get('name')
